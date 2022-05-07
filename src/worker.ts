@@ -9,12 +9,9 @@ import {
   MSG_CLEAR_HOST,
   MSG_COMMIT_UPDATE,
   MSG_ADD_EVENT,
-  MSG_EVENT
-} from './messages';
-import {
-  PROP_PROP,
-  PROP_CHILDREN
-} from './commit';
+  MSG_EVENT,
+} from "./messages";
+import { PROP_PROP, PROP_CHILDREN } from "./commit";
 
 const rootHostContext = {};
 const childHostContext = {};
@@ -23,9 +20,9 @@ const dynamicMemory = new Uint8Array(16777216);
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-self.addEventListener('message', ev => {
+self.addEventListener("message", (ev) => {
   let arr = new Uint8Array(ev.data);
-  switch(arr[0]) {
+  switch (arr[0]) {
     case MSG_EVENT: {
       let id = arr[1];
       let len = arr[2];
@@ -33,7 +30,7 @@ self.addEventListener('message', ev => {
       let name = decoder.decode(nameArr);
       let node = eventReceivers.get(id);
 
-      if(!node) {
+      if (!node) {
         throw new Error(`Unable to find an event handler for the [${name}]`);
       }
 
@@ -59,20 +56,28 @@ class VNode extends EventTarget {
     this.children = [];
     this.id = globalId++;
   }
-  addEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
+  addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions
+  ): void {
     super.addEventListener(type, callback, options);
-    if(!this.events) {
+    if (!this.events) {
       this.events = new Map();
     }
     this.events.set(type, callback);
   }
   hasEvent(type: string): boolean {
-    if(!this.events) {
+    if (!this.events) {
       return false;
     }
     return this.events.has(type);
   }
-  replaceEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
+  replaceEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions
+  ): void {
     this.removeEventListener(type, this.events.get(type));
     this.addEventListener(type, callback, options);
   }
@@ -94,51 +99,59 @@ class TextVNode {
 }
 
 const isEventProp = (propKey: string) => /^on[A-Z]/.test(propKey);
-const getEventNameFromProp = (propKey: string) => propKey[2].toLowerCase() + propKey.slice(3);
+const getEventNameFromProp = (propKey: string) =>
+  propKey[2].toLowerCase() + propKey.slice(3);
 
-function batchUpdate(node: VNode, updatePayload: any[], newProps: Record<string, any>) {
+function batchUpdate(
+  node: VNode,
+  updatePayload: any[],
+  newProps: Record<string, any>
+) {
   dynamicMemory[0] = MSG_COMMIT_UPDATE;
-    dynamicMemory[1] = node.id;
-    dynamicMemory[2] = 0; // todo change
-    let offset = 3;
+  dynamicMemory[1] = node.id;
+  dynamicMemory[2] = 0; // todo change
+  let offset = 3;
 
-    let children: Uint8Array | null = null;
+  let children: Uint8Array | null = null;
 
-    for(let i = 0, len = updatePayload.length; i < len; i += 2) {
-      let propKey = updatePayload[i];
-      let propValue = updatePayload[i + 1];
+  for (let i = 0, len = updatePayload.length; i < len; i += 2) {
+    let propKey = updatePayload[i];
+    let propValue = updatePayload[i + 1];
 
-      if (propKey === 'children') {
-        // TODO maek children copy
-        let bytes = encoder.encode(propValue + '');
-        children = new Uint8Array(bytes.length + 1);
-        children[0] = bytes.length;
-        children.set(bytes, 1);
-      } else if (isEventProp(propKey)) {
-        let eventName = getEventNameFromProp(propKey);
-        if(node.hasEvent(eventName)) {
-          node.replaceEventListener(eventName, propValue);
-        } else {
-          throw new Error('Cannot update on an unknown event yet.');
-        }
-
+    if (propKey === "children") {
+      // TODO maek children copy
+      let bytes = encoder.encode(propValue + "");
+      children = new Uint8Array(bytes.length + 1);
+      children[0] = bytes.length;
+      children.set(bytes, 1);
+    } else if (isEventProp(propKey)) {
+      let eventName = getEventNameFromProp(propKey);
+      if (node.hasEvent(eventName)) {
+        node.replaceEventListener(eventName, propValue);
       } else {
-        const propValue = newProps[propKey];
-        
-        //node.setAttribute(propName, propValue);
+        throw new Error("Cannot update on an unknown event yet.");
       }
-    }
+    } else {
+      const propValue = newProps[propKey];
 
-    if(children !== null) {
-      dynamicMemory.set(children, offset);
-      offset += children.length;
+      //node.setAttribute(propName, propValue);
     }
+  }
 
-    let arr = dynamicMemory.slice(0, offset);
-    notify(arr.buffer);
+  if (children !== null) {
+    dynamicMemory.set(children, offset);
+    offset += children.length;
+  }
+
+  let arr = dynamicMemory.slice(0, offset);
+  notify(arr.buffer);
 }
 
-function writePropIntoDynamicMemory(offset: number, propKey: string, propValue: string): number {
+function writePropIntoDynamicMemory(
+  offset: number,
+  propKey: string,
+  propValue: string
+): number {
   dynamicMemory[offset++] = PROP_PROP;
 
   let keyArr = encoder.encode(propKey);
@@ -190,11 +203,11 @@ const hostConfig = {
     dynamicMemory[propOffset] = 0; // props
     offset++;
 
-    Object.keys(newProps).forEach(propKey => {
+    Object.keys(newProps).forEach((propKey) => {
       let propValue = newProps[propKey];
-      if(propKey === 'children') {
+      if (propKey === "children") {
         let type = typeof newProps.children;
-        if(type === 'string' || type === 'number') {
+        if (type === "string" || type === "number") {
           let text = newProps.children;
           let bytes = encoder.encode(text);
           dynamicMemory[offset++] = PROP_CHILDREN;
@@ -202,11 +215,10 @@ const hostConfig = {
           dynamicMemory.set(bytes, offset);
           offset += bytes.length;
         }
-      } else if(isEventProp(propKey)) {
-
+      } else if (isEventProp(propKey)) {
       } else {
-        if(typeof propValue !== 'string') {
-          throw new Error('non-strings not currently supported');
+        if (typeof propValue !== "string") {
+          throw new Error("non-strings not currently supported");
         }
         offset = writePropIntoDynamicMemory(offset, propKey, propValue);
       }
@@ -237,19 +249,19 @@ const hostConfig = {
     parent.appendChild(child);
   },
   appendChild(parent, child) {
-    console.log('appendChild', parent)
+    console.log("appendChild", parent);
     parent.appendChild(child);
   },
   finalizeInitialChildren: () => {
     return true;
   },
   insertInContainerBefore(container, child, beforeChild) {
-    console.log('insertInContainerBefore', container, child, beforeChild)
+    console.log("insertInContainerBefore", container, child, beforeChild);
   },
   commitMount(instance: VNode, type, props, internalHandle) {
-    Object.keys(props).forEach(propKey => {
+    Object.keys(props).forEach((propKey) => {
       let propValue = props[propKey];
-      if(isEventProp(propKey)) {
+      if (isEventProp(propKey)) {
         let eventName = getEventNameFromProp(propKey);
         let arr = new Uint8Array(1024);
         arr[0] = MSG_ADD_EVENT;
@@ -260,7 +272,7 @@ const hostConfig = {
         notify(arr.buffer);
         instance.addEventListener(eventName, propValue);
         eventReceivers.set(instance.id, instance);
-      } else if(propKey === 'children') {
+      } else if (propKey === "children") {
         return;
       } else {
         // TODO what do?
@@ -281,13 +293,13 @@ const hostConfig = {
     Object.keys(newProps).forEach((propKey) => {
       let nextProp = newProps[propKey];
       let oldProp = oldProps[propKey];
-      if(nextProp !== oldProp) {
-        if(propKey === 'children') {
-          if(typeof nextProp === 'string' || typeof nextProp === 'number') {
-            (updatePayload = updatePayload || []).push(propKey, '' + nextProp);
+      if (nextProp !== oldProp) {
+        if (propKey === "children") {
+          if (typeof nextProp === "string" || typeof nextProp === "number") {
+            (updatePayload = updatePayload || []).push(propKey, "" + nextProp);
           }
         } else {
-            (updatePayload = updatePayload || []).push(propKey, nextProp);
+          (updatePayload = updatePayload || []).push(propKey, nextProp);
         }
       }
     });
@@ -301,25 +313,24 @@ const hostConfig = {
 
     let children: Uint8Array | null = null;
 
-    for(let i = 0, len = updatePayload.length; i < len; i += 2) {
+    for (let i = 0, len = updatePayload.length; i < len; i += 2) {
       let propKey = updatePayload[i];
       let propValue = updatePayload[i + 1];
 
-      if (propKey === 'children') {
+      if (propKey === "children") {
         // TODO maek children copy
-        let bytes = encoder.encode(propValue + '');
+        let bytes = encoder.encode(propValue + "");
         dynamicMemory[offset++] = PROP_CHILDREN;
         dynamicMemory[offset++] = bytes.length;
         dynamicMemory.set(bytes, offset);
         offset += bytes.length;
       } else if (isEventProp(propKey)) {
         let eventName = getEventNameFromProp(propKey);
-        if(node.hasEvent(eventName)) {
+        if (node.hasEvent(eventName)) {
           node.replaceEventListener(eventName, propValue);
         } else {
-          throw new Error('Cannot update on an unknown event yet.');
+          throw new Error("Cannot update on an unknown event yet.");
         }
-
       } else {
         offset = writePropIntoDynamicMemory(offset, propKey, propValue);
       }
@@ -329,11 +340,11 @@ const hostConfig = {
     notify(arr.buffer);
   },
   commitTextUpdate(textInstance, oldText, newText) {
-    console.log("TEXT UPDATE")
+    console.log("TEXT UPDATE");
     textInstance.text = newText;
   },
   removeChild(parentInstance, child) {
-    console.log('removing', child);
+    console.log("removing", child);
     parentInstance.removeChild(child);
   },
   clearContainer(container) {
@@ -361,25 +372,25 @@ const hostConfig = {
     return void 0;
   },
   errorHydratingContainer(container) {
-    console.error(`errorHydratingContainer`, container)
+    console.error(`errorHydratingContainer`, container);
   },
   didNotFindHydratableInstanceWithinContainer(parentContainer, type, props) {
     debugger;
-  }
+  },
 };
 
 const ReactReconcilerInst = ReactReconciler(hostConfig);
 
 /* global reportError */
 const defaultOnRecoverableError =
-  typeof reportError === 'function'
+  typeof reportError === "function"
     ? // In modern browsers, reportError will dispatch an error event,
       // emulating an uncaught JavaScript error.
       reportError
     : (error: any) => {
         // In older browsers and test environments, fallback to console.error.
         // eslint-disable-next-line react-internal/no-production-logging
-        console['error'](error);
+        console["error"](error);
       };
 
 function sendHostCreated(host: VNode, selector: string) {
@@ -394,7 +405,11 @@ function sendHostCreated(host: VNode, selector: string) {
 
 export const WW = {
   roots: new Map<string, VNode>(),
-  render: (reactElement: React.ReactElement, selector: string, callback: (() => any) | undefined = undefined) => {
+  render: (
+    reactElement: React.ReactElement,
+    selector: string,
+    callback: (() => any) | undefined = undefined
+  ) => {
     let host = WW.roots.get(selector);
     if (!host) {
       host = new VNode(undefined);
@@ -423,9 +438,9 @@ export const WW = {
         {}, // hydrationCallbacks
         false, // isStrictMode
         false, // concurrentUpdatesByDefaultOverride
-        '', // identifierPrefix
+        "", // identifierPrefix
         defaultOnRecoverableError, // onRecoverableError
-        null, // transitionCallbacks
+        null // transitionCallbacks
       );
 
       sendHostCreated(host, selector);
@@ -441,5 +456,5 @@ export const WW = {
       null,
       callback
     );
-  }
+  },
 };

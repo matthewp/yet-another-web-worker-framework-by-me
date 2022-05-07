@@ -8,7 +8,7 @@
     "build:worker": "esbuild src/worker.ts --external:react-reconciler --external:react --bundle --format=esm --outfile=dist/worker.js",
     "build": "npm run build:window && npm run build:worker",
     "watch-demo": "esbuild demo/app.tsx src/window.ts --outdir=demo/dist --bundle --watch --format=esm --sourcemap",
-    "format": "prettier -w src/"
+    "format": "prettier -w src/ demo/"
   },
   "keywords": ["react"],
   "author": "Matthew Phillips <matthew@matthewphillips.info>",
