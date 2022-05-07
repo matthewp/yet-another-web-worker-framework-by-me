@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<title>Demo</title>
+<link rel="prefetch" href="./dist/app.js">
+<style>
+    .count.blue {
+        color: blue;
+    }
+    .count.red {
+        color: red;
+    }
+</style>
+
+<main></main>
+<script type="module">
+    import { use } from './dist/src/window.js';
+
+    use(new URL('./dist/demo/app.js', import.meta.url));
+</script>

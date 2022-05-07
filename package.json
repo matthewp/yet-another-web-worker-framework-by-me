@@ -1,0 +1,26 @@
+{
+  "name": "react-ww",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "build:window": "esbuild src/window.ts --bundle --format=esm --outfile=dist/window.js",
+    "build:worker": "esbuild src/worker.ts --external:react-reconciler --external:react --bundle --format=esm --outfile=dist/worker.js",
+    "build": "npm run build:window && npm run build:worker",
+    "watch-demo": "esbuild demo/app.tsx src/window.ts --outdir=demo/dist --bundle --watch --format=esm --sourcemap",
+    "format": "prettier -w src/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/react": "^18.0.8",
+    "esbuild": "^0.14.38",
+    "prettier": "^2.6.2",
+    "react": "^18.1.0",
+    "react-reconciler": "^0.28.0"
+  },
+  "dependencies": {
+    "@types/react-reconciler": "^0.26.6"
+  }
+}
