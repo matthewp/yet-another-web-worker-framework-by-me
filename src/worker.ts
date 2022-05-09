@@ -6,12 +6,19 @@ import {
   MSG_APPEND_TO_HOST,
   MSG_CREATE_HOST,
   MSG_APPEND_CHILD,
+  MSG_REMOVE_CHILD,
   MSG_CLEAR_HOST,
   MSG_COMMIT_UPDATE,
   MSG_ADD_EVENT,
+  MSG_REMOVE_EVENT,
   MSG_EVENT,
 } from "./messages";
-import { PROP_PROP, PROP_CHILDREN } from "./commit";
+import {
+  PROP_PROP,
+  PROP_CHILDREN,
+  EVENT_PROP_TARGET,
+  EVENT_TARGET_VALUE,
+} from "./commit";
 
 const rootHostContext = {};
 const childHostContext = {};
@@ -26,7 +33,9 @@ self.addEventListener("message", (ev) => {
     case MSG_EVENT: {
       let id = arr[1];
       let len = arr[2];
-      let nameArr = arr.subarray(3, 3 + len);
+      let offset = 3;
+      let nameArr = arr.subarray(offset, offset + len);
+      offset += len;
       let name = decoder.decode(nameArr);
       let node = eventReceivers.get(id);
 
@@ -34,7 +43,40 @@ self.addEventListener("message", (ev) => {
         throw new Error(`Unable to find an event handler for the [${name}]`);
       }
 
-      node.dispatchEvent(new Event(name));
+      let event = new Event(name);
+      while(offset < arr.length) {
+        let propType = arr[offset];
+        switch(propType) {
+          case EVENT_PROP_TARGET: {
+            Object.defineProperty(event, 'target', {
+              value: {}
+            });
+            offset++;
+            propType = arr[offset];
+            switch(propType) {
+              case EVENT_TARGET_VALUE: {
+                offset++;
+                let valueLen = arr[offset++];
+                let valueArr = arr.subarray(offset, offset + valueLen);
+                offset += valueLen;
+                let value = decoder.decode(valueArr);
+                event.target.value = value;
+                break;
+              }
+              default: {
+                throw new Error(`Unknown target prop`);
+              }
+            }
+            break;
+          }
+          default: {
+            throw new Error(`Unknown event prop`);
+          }
+        }
+      }
+
+
+      node.dispatchEvent(event);
       break;
     }
   }
@@ -48,7 +90,7 @@ let globalId = 0;
 let eventReceivers = new Map<number, VNode>();
 
 class VNode extends EventTarget {
-  public children: any[];
+  public children: VNode[];
   public id: number;
   public events: Map<string, EventListenerOrEventListenerObject> | undefined;
   constructor(public type: string | undefined) {
@@ -81,11 +123,12 @@ class VNode extends EventTarget {
     this.removeEventListener(type, this.events.get(type));
     this.addEventListener(type, callback, options);
   }
-  appendChild(child) {
+  appendChild(child: VNode) {
     this.children.push(child);
   }
-  removeChild(child) {
-    debugger;
+  removeChild(child: VNode) {
+    let idx = this.children.indexOf(child);
+    this.children.splice(idx, 1);
   }
 }
 
@@ -344,8 +387,25 @@ const hostConfig = {
     textInstance.text = newText;
   },
   removeChild(parentInstance, child) {
-    console.log("removing", child);
+    console.log("SEND MESSAGE HERE");
     parentInstance.removeChild(child);
+  },
+  detachDeletedInstance(instance) {
+    if(instance.events) {
+      for(let [type] of instance.events) {
+        dynamicMemory[0] = MSG_REMOVE_EVENT;
+        dynamicMemory[1] = instance.id;
+        let offset = 2;
+        let typeArr = encoder.encode(type);
+        dynamicMemory[offset++] = typeArr.length;
+        dynamicMemory.set(typeArr, offset);
+        offset += typeArr.length;
+        let arr = dynamicMemory.slice(0, offset);
+        notify(arr.buffer);
+      }
+    }
+
+    eventReceivers.delete(instance.id);
   },
   clearContainer(container) {
     let arr = new Uint8Array(2);

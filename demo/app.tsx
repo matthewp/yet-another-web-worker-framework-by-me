@@ -1,20 +1,21 @@
-import React, { useState } from "react";
+import React, { Fragment, useState } from "react";
 import { WW } from "../src/worker";
+import Header from './header';
+import Counter from './counter';
+import Namer from './namer';
+import './styles/app.css';
 
 function MyApp() {
-  const [count, setCount] = useState(0);
-  const [color, setColor] = useState("red");
-  const onClick = () => {
-    setCount(count + 1);
-    setColor(color === "red" ? "blue" : "red");
-  };
-
+  const [showNamer, setShowNamer] = useState(true);
   return (
-    <div>
-      Count: <span className={`count ${color}`}>{count}</span>
-      <br />
-      <button onClick={onClick}>Click me</button>
-    </div>
+    <Fragment>
+        <Header />
+        <main>
+            <Counter />
+            <button type="button" onClick={() => setShowNamer(false)}>Remove namer</button>
+            {showNamer && <Namer />}
+        </main>
+    </Fragment>
   );
 }
 

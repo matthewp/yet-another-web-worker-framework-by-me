@@ -1,0 +1,6 @@
+.count[data-color=blue] {
+color: blue;
+}
+.count[data-color=red] {
+color: red;
+}

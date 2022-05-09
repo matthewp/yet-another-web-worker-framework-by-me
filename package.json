@@ -7,7 +7,7 @@
     "build:window": "esbuild src/window.ts --bundle --format=esm --outfile=dist/window.js",
     "build:worker": "esbuild src/worker.ts --external:react-reconciler --external:react --bundle --format=esm --outfile=dist/worker.js",
     "build": "npm run build:window && npm run build:worker",
-    "watch-demo": "esbuild demo/app.tsx src/window.ts --outdir=demo/dist --bundle --watch --format=esm --sourcemap",
+    "serve-demo": "esbuild src/window.ts demo/app.tsx --servedir=demo --outdir=demo/dist --bundle --format=esm --sourcemap",
     "format": "prettier -w src/ demo/"
   },
   "keywords": ["react"],

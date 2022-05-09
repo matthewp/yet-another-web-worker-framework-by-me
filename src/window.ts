@@ -6,12 +6,19 @@ import {
   MSG_CREATE_TEXT,
   MSG_COMMIT_UPDATE,
   MSG_ADD_EVENT,
+  MSG_REMOVE_EVENT,
   MSG_EVENT,
   MSG_CLEAR_HOST,
 } from "./messages";
-import { PROP_PROP, PROP_CHILDREN } from "./commit";
+import {
+  PROP_PROP,
+  PROP_CHILDREN,
+  EVENT_PROP_TARGET,
+  EVENT_TARGET_VALUE
+} from "./commit";
 
 let decoder = new TextDecoder();
+let encoder = new TextEncoder();
 
 let hostMap = new Map<number, Element>();
 let getAndAssertHost = (id: number): Element => {
@@ -28,7 +35,8 @@ function applyBatchUpdate(
   offset: number
 ): number {
   while (offset < arr.length) {
-    switch (arr[offset]) {
+    let type = arr[offset];
+    switch (type) {
       // Prop
       case PROP_PROP: {
         offset++;
@@ -40,7 +48,12 @@ function applyBatchUpdate(
         let valueArr = arr.subarray(offset, offset + valueLen);
         let value = decoder.decode(valueArr);
         offset += valueLen;
-        Reflect.set(el, key, value);
+
+        if(key in el) {
+          Reflect.set(el, key, value);
+        } else {
+          el.setAttribute(key, value);
+        }
         break;
       }
       // TextContent
@@ -61,6 +74,8 @@ function applyBatchUpdate(
   }
   return offset;
 }
+
+let buffer: number[] = [];
 
 let handler = {
   [MSG_CREATE_INSTANCE](arr: Uint8Array) {
@@ -131,14 +146,28 @@ let handler = {
     let name = decoder.decode(nameArr);
     let el = getAndAssertHost(id);
     el.addEventListener(name, (ev) => {
-      let arr = new Uint8Array(1024);
-      arr[0] = MSG_EVENT;
-      arr[1] = id;
-      arr[2] = nameArr.length;
-      arr.set(nameArr, 3);
+      let typeArr = encoder.encode(ev.type);
+      buffer.length = 0;
+      buffer.push(MSG_EVENT, id, typeArr.length, ...typeArr);
+      if(ev.target) {
+        buffer.push(EVENT_PROP_TARGET);
+        if('value' in ev.target) {
+          let valueArr = encoder.encode(ev.target.value);
+          buffer.push(EVENT_TARGET_VALUE, valueArr.length, ...valueArr);
+        }
+      }
+
+      let arr = Uint8Array.from(buffer);
       worker.postMessage(arr.buffer, [arr.buffer]);
     });
   },
+  [MSG_REMOVE_EVENT](arr: Uint8Array) {
+    let id = arr[1];
+    let typeLen = arr[2];
+    let typeArr = arr.subarray(3, 3 + typeLen);
+    let type = decoder.decode(typeArr);
+    
+  }
 };
 
 export const use = (src: string) => {
