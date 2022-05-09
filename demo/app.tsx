@@ -19,4 +19,4 @@ function MyApp() {
   );
 }
 
-WW.render(<MyApp />, "main");
+WW.render(<MyApp />, "#app");
