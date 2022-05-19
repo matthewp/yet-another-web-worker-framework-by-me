@@ -60,7 +60,7 @@ self.addEventListener("message", (ev) => {
                 let valueArr = arr.subarray(offset, offset + valueLen);
                 offset += valueLen;
                 let value = decoder.decode(valueArr);
-                event.target.value = value;
+                (event.target as Record<string, any>).value = value;
                 break;
               }
               default: {
@@ -283,7 +283,7 @@ const hostConfig = {
     return node;
     //return document.createTextNode(text);
   },
-  appendInitialChild: (parent, child) => {
+  appendInitialChild(parent, child) {
     let arr = new Uint8Array(3);
     arr[0] = MSG_APPEND_CHILD;
     arr[1] = child.id;
@@ -292,7 +292,11 @@ const hostConfig = {
     parent.appendChild(child);
   },
   appendChild(parent, child) {
-    console.log("appendChild", parent);
+    let arr = new Uint8Array(3);
+    arr[0] = MSG_APPEND_CHILD;
+    arr[1] = child.id;
+    arr[2] = parent.id;
+    notify(arr.buffer);
     parent.appendChild(child);
   },
   finalizeInitialChildren: () => {
@@ -387,7 +391,10 @@ const hostConfig = {
     textInstance.text = newText;
   },
   removeChild(parentInstance, child) {
-    console.log("SEND MESSAGE HERE");
+    let arr = new Uint8Array(2);
+    arr[0] = MSG_REMOVE_CHILD;
+    arr[1] = child.id;
+    notify(arr.buffer);
     parentInstance.removeChild(child);
   },
   detachDeletedInstance(instance) {

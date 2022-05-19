@@ -4,10 +4,10 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build:window": "esbuild src/window.ts --bundle --format=esm --outfile=dist/window.js",
+    "build:window": "esbuild src/window/index.ts --bundle --format=esm --outfile=dist/window.js",
     "build:worker": "esbuild src/worker.ts --external:react-reconciler --external:react --bundle --format=esm --outfile=dist/worker.js",
     "build": "npm run build:window && npm run build:worker",
-    "serve-demo": "esbuild src/window.ts demo/app.tsx --servedir=demo --outdir=demo/dist --bundle --format=esm --sourcemap",
+    "serve-demo": "esbuild src/window/index.ts demo/app.tsx --servedir=demo --outdir=demo/dist --bundle --format=esm --sourcemap",
     "format": "prettier -w src/ demo/"
   },
   "keywords": ["react"],

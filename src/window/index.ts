@@ -7,27 +7,19 @@ import {
   MSG_COMMIT_UPDATE,
   MSG_ADD_EVENT,
   MSG_REMOVE_EVENT,
-  MSG_EVENT,
+  MSG_REMOVE_CHILD,
   MSG_CLEAR_HOST,
-} from "./messages";
+} from "../messages";
 import {
   PROP_PROP,
   PROP_CHILDREN,
-  EVENT_PROP_TARGET,
-  EVENT_TARGET_VALUE
-} from "./commit";
+} from "../commit";
+import { getAndAssertHost, hostMap, EventListener, eventMap } from "./host-state";
 
 let decoder = new TextDecoder();
 let encoder = new TextEncoder();
 
-let hostMap = new Map<number, Element>();
-let getAndAssertHost = (id: number): Element => {
-  let el = hostMap.get(id);
-  if (!el) {
-    throw new Error(`Expected to find a host element for id ${id}`);
-  }
-  return el;
-};
+
 
 function applyBatchUpdate(
   el: Element,
@@ -75,7 +67,7 @@ function applyBatchUpdate(
   return offset;
 }
 
-let buffer: number[] = [];
+
 
 let handler = {
   [MSG_CREATE_INSTANCE](arr: Uint8Array) {
@@ -118,6 +110,11 @@ let handler = {
   [MSG_APPEND_CHILD](arr: Uint8Array) {
     getAndAssertHost(arr[2]).append(getAndAssertHost(arr[1]));
   },
+  [MSG_REMOVE_CHILD](arr: Uint16Array) {
+    let id = arr[1];
+    let host = getAndAssertHost(id);
+    host.remove();
+  },
   [MSG_CLEAR_HOST](arr: Uint8Array) {
     let id = arr[1];
     getAndAssertHost(id).replaceChildren();
@@ -142,31 +139,30 @@ let handler = {
   [MSG_ADD_EVENT](arr: Uint8Array, worker: Worker) {
     let id = arr[1];
     let len = arr[2];
-    let nameArr = arr.subarray(3, 3 + len);
-    let name = decoder.decode(nameArr);
+    let typeArr = arr.subarray(3, 3 + len);
+    let type = decoder.decode(typeArr);
     let el = getAndAssertHost(id);
-    el.addEventListener(name, (ev) => {
-      let typeArr = encoder.encode(ev.type);
-      buffer.length = 0;
-      buffer.push(MSG_EVENT, id, typeArr.length, ...typeArr);
-      if(ev.target) {
-        buffer.push(EVENT_PROP_TARGET);
-        if('value' in ev.target) {
-          let valueArr = encoder.encode(ev.target.value);
-          buffer.push(EVENT_TARGET_VALUE, valueArr.length, ...valueArr);
-        }
-      }
 
-      let arr = Uint8Array.from(buffer);
-      worker.postMessage(arr.buffer, [arr.buffer]);
-    });
+    if(!eventMap.has(id)) {
+      eventMap.set(id, new EventListener(el, id, worker));
+    }
+
+    let listener = eventMap.get(id)!;
+    el.addEventListener(type, listener);
+    listener.add(type);
   },
   [MSG_REMOVE_EVENT](arr: Uint8Array) {
     let id = arr[1];
     let typeLen = arr[2];
     let typeArr = arr.subarray(3, 3 + typeLen);
     let type = decoder.decode(typeArr);
-    
+    let listener = eventMap.get(id);
+    if(!listener) throw new Error(`Unexpectedly couldn't find event listener`);
+    listener.el.removeEventListener(type, listener);
+    listener.delete(type);
+    if(listener.size === 0) {
+      eventMap.delete(id);
+    }
   }
 };
 

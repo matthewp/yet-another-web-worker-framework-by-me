@@ -12,7 +12,7 @@ function MyApp() {
         <Header />
         <main>
             <Counter />
-            <button type="button" onClick={() => setShowNamer(false)}>Remove namer</button>
+            <button type="button" onClick={() => setShowNamer(!showNamer)}>Toggle showing namer form</button>
             {showNamer && <Namer />}
         </main>
     </Fragment>
