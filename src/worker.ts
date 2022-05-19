@@ -120,7 +120,10 @@ class VNode extends EventTarget {
     callback: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
   ): void {
-    this.removeEventListener(type, this.events.get(type));
+    if(this.events) {
+      this.removeEventListener(type, this.events.get(type)!);
+    }
+
     this.addEventListener(type, callback, options);
   }
   appendChild(child: VNode) {
@@ -410,6 +413,7 @@ const hostConfig = {
         let arr = dynamicMemory.slice(0, offset);
         notify(arr.buffer);
       }
+      instance.events = undefined;
     }
 
     eventReceivers.delete(instance.id);
